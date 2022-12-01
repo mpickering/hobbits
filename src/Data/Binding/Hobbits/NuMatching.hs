@@ -12,6 +12,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 
 -- |
 -- Module      : Data.Binding.Hobbits.NuMatching
@@ -59,6 +60,29 @@ import Data.Binding.Hobbits.Internal.Name
 import Data.Binding.Hobbits.Internal.Mb
 import Data.Binding.Hobbits.Internal.Closed
 import Data.Binding.Hobbits.Internal.Utilities
+
+-- | Typeclass for lifting the 'NuMatching' constraint to functors on arbitrary
+-- kinds that do not require any constraints on their input types
+class (forall a . NuMatching (f a))  => NuMatchingAny1 (f :: k -> Type) where
+  nuMatchingAny1Proof :: MbTypeRepr (f a)
+
+instance {-# OVERLAPPABLE #-} (forall a . NuMatching (f a), NuMatchingAny1 f) => NuMatching (RAssign f ctx) where
+    nuMatchingProof = MbTypeReprData $ MkMbTypeReprData helper where
+        helper :: NuMatchingAny1 f => NameRefresher -> RAssign f args ->
+                  RAssign f args
+        helper _ MNil = MNil
+        helper r (elms :>: elm) =
+            helper r elms :>: mapNames r elm
+
+instance (forall a . NuMatching (f a), NuMatchingAny1 f) => NuMatchingAny1 (RAssign f) where
+  nuMatchingAny1Proof = nuMatchingProof
+
+-- now we define some TH to create NuMatchings
+
+natsFrom :: Integer -> [Integer]
+natsFrom i = i : natsFrom (i+1)
+
+fst3 :: (a,b,c) -> a
 
 
 {-| Just like 'mapNamesPf', except uses the NuMatching class. -}
@@ -231,42 +255,6 @@ instance {-# OVERLAPPABLE #-} (NuMatching1 f, NuMatchingList ctx) =>
                   mapNames r elm
 -}
 
--- | Typeclass for lifting the 'NuMatching' constraint to functors on arbitrary
--- kinds that do not require any constraints on their input types
-class NuMatchingAny1 (f :: k -> Type) where
-  nuMatchingAny1Proof :: MbTypeRepr (f a)
-
-instance {-# INCOHERENT #-} NuMatchingAny1 f => NuMatching (f a) where
-  nuMatchingProof = nuMatchingAny1Proof
-
-instance NuMatchingAny1 Name where
-  nuMatchingAny1Proof = nuMatchingProof
-
-instance NuMatchingAny1 Proxy where
-  nuMatchingAny1Proof = nuMatchingProof
-
-instance NuMatchingAny1 ((:~:) a) where
-  nuMatchingAny1Proof = nuMatchingProof
-
-instance NuMatching a => NuMatchingAny1 (Constant a) where
-  nuMatchingAny1Proof = nuMatchingProof
-
-instance {-# OVERLAPPABLE #-} NuMatchingAny1 f => NuMatching (RAssign f ctx) where
-    nuMatchingProof = MbTypeReprData $ MkMbTypeReprData helper where
-        helper :: NuMatchingAny1 f => NameRefresher -> RAssign f args ->
-                  RAssign f args
-        helper _ MNil = MNil
-        helper r (elms :>: elm) = helper r elms :>: mapNames r elm
-
-instance NuMatchingAny1 f => NuMatchingAny1 (RAssign f) where
-  nuMatchingAny1Proof = nuMatchingProof
-
--- now we define some TH to create NuMatchings
-
-natsFrom :: Integer -> [Integer]
-natsFrom i = i : natsFrom (i+1)
-
-fst3 :: (a,b,c) -> a
 fst3 (x,_,_) = x
 
 -- snd3 :: (a,b,c) -> b

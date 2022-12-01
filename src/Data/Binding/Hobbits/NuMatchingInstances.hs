@@ -30,6 +30,7 @@ import Data.Type.Equality
 import Data.Functor.Constant
 import Data.Functor.Product
 import Data.Ratio
+import Data.Binding.Hobbits.Internal.Name
 
 import Data.Type.RList
 import Data.Binding.Hobbits.NuMatching
@@ -51,3 +52,12 @@ instance (NuMatchingAny1 f,
 instance (Integral a, NuMatching a) => NuMatching (Ratio a) where
   nuMatchingProof =
     isoMbTypeRepr (\r -> (numerator r, denominator r)) (\(n,d) -> n%d)
+
+instance NuMatchingAny1 Name where
+  nuMatchingAny1Proof = nuMatchingProof
+
+instance NuMatchingAny1 Proxy where
+  nuMatchingAny1Proof = nuMatchingProof
+
+instance NuMatching a => NuMatchingAny1 (Constant a) where
+  nuMatchingAny1Proof = nuMatchingProof
